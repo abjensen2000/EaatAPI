@@ -15,7 +15,7 @@ builder.Services.AddHostedService<BestillingsFraBudService>();
 var factory = new ConnectionFactory() { HostName = "localhost" };
 var connection = await factory.CreateConnectionAsync();
 var channel = await connection.CreateChannelAsync();
-await channel.ExchangeDeclareAsync(exchange: "bestillingerTilBud", type: ExchangeType.Fanout, durable: true);
+await channel.ExchangeDeclareAsync(exchange: "bestillingerFraAPITilRestaurant", type: ExchangeType.Direct, durable: true);
 await channel.ExchangeDeclareAsync(exchange: "bestillingerFraBud", type: ExchangeType.Direct, durable: true);
 builder.Services.AddSingleton<IConnection>(connection);
 
@@ -38,8 +38,8 @@ using (var scope = app.Services.CreateScope())
 
         context.SaveChanges();
 
-        var bestilling1 = new Bestilling("Stor pizza", restaurant1.Adresse, kunde1.Adresse, kunde1.Id);
-        var bestilling2 = new Bestilling("Lille sushibakke", restaurant2.Adresse, kunde2.Adresse, kunde2.Id);
+        var bestilling1 = new Bestilling("Stor pizza", restaurant1.Adresse, kunde1.Adresse, kunde1.Id, restaurant1.Id);
+        var bestilling2 = new Bestilling("Lille sushibakke", restaurant2.Adresse, kunde2.Adresse, kunde2.Id, restaurant2.Id);
         var bud1 = new Bud();
         var bud2 = new Bud();
         context.Bestillinger.AddRange(bestilling1, bestilling2);

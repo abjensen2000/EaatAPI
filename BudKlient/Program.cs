@@ -7,9 +7,10 @@ public class Program
 {
     private static HttpClient _httpClient = new HttpClient();
     private static Bud _currentBud;
-    private static ModtagOrdreService _modtagOrdreService = new ModtagOrdreService();
-    private static OrdreTagetService _ordreTagetService = new OrdreTagetService();
+    private static ModtagBestillingService _modtagOrdreService = new ModtagBestillingService();
+    private static BestillingTagetService _ordreTagetService = new BestillingTagetService();
     private static List<Bud> _alleBuds;
+    private static bool _redrawRequested = false;
 
     public static async Task Main(string[] args)
     {
@@ -36,28 +37,86 @@ public class Program
             {
                 foreach (var bestilling in eksisterendeBestillinger)
                 {
-                    if ((bestilling.BudId == 0 || bestilling.BudId == null) && !ModtagOrdreService.Bestillinger.Any(i => i.Id == bestilling.Id))
+                    if ((bestilling.BudId == 0 || bestilling.BudId == null) && !ModtagBestillingService.Bestillinger.ContainsKey(bestilling.Id))
                     {
-                        ModtagOrdreService.Bestillinger.Add(bestilling);
+                        ModtagBestillingService.Bestillinger.TryAdd(bestilling.Id, bestilling);
                     }
                 }
             }
-            PrintBestillinger();
-            ModtagOrdreService.OnMessageReceived = () =>
+            
+            ModtagBestillingService.OnMessageReceived = () =>
             {
-                PrintBestillinger();
+                _redrawRequested = true;
             };
-            await Task.Delay(-1);
+            
+            await BestillingsLoop();
         }
     }
 
-    private static async Task PrintBestillinger()
+    private static async Task BestillingsLoop()
+    {
+        _redrawRequested = true;
+        string currentInput = "";
+        
+        while(true)
+        {
+            if (_redrawRequested)
+            {
+                PrintSkærm(currentInput);
+                _redrawRequested = false;
+            }
+
+            if (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(intercept: true);
+                
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    if (int.TryParse(currentInput, out int valgtId))
+                    {
+                        var fundetBestilling = ModtagBestillingService.Bestillinger.Values.FirstOrDefault(i => i.Id == valgtId);
+
+                        if (fundetBestilling != null)
+                        {
+                            await _ordreTagetService.SendTagetBeskedAsync(valgtId, _currentBud.Id);
+                            ModtagBestillingService.Bestillinger.TryRemove(valgtId, out _);
+                            Console.WriteLine("\nBesked sendt! Vent på opdatering...");
+                            await Task.Delay(1000);
+                        }
+                        else
+                        {
+                            Console.WriteLine("\nID findes ikke i listen.");
+                            await Task.Delay(1000);
+                        }
+                    }
+                    currentInput = "";
+                    _redrawRequested = true;
+                }
+                else if (key.Key == ConsoleKey.Backspace && currentInput.Length > 0)
+                {
+                    currentInput = currentInput.Substring(0, currentInput.Length - 1);
+                    _redrawRequested = true;
+                }
+                else if (char.IsDigit(key.KeyChar))
+                {
+                    currentInput += key.KeyChar;
+                    _redrawRequested = true;
+                }
+            }
+            else
+            {
+                await Task.Delay(50);
+            }
+        }
+    }
+
+    private static void PrintSkærm(string inputSoFar)
     {
         Console.Clear();
         Console.WriteLine($"Logget ind som: {_currentBud.Id}");
         Console.WriteLine("-----------------------------------------");
 
-        var alleBestillinger = ModtagOrdreService.Bestillinger.ToList();
+        var alleBestillinger = ModtagBestillingService.Bestillinger.Values.ToList();
         if (alleBestillinger.Count == 0)
         {
             Console.WriteLine("Ingen ledige bestillinger lige nu...");
@@ -70,23 +129,7 @@ public class Program
             }
         }
         Console.WriteLine("-----------------------------------------");
-        Console.WriteLine("Indtast ID på bestilling du vil tage: ");
-        string input = Console.ReadLine();
-        if (int.TryParse(input, out int valgtId))
-        {
-            var fundetBestilling = alleBestillinger.FirstOrDefault(i => i.Id == valgtId);
-
-            if (fundetBestilling != null)
-            {
-                await _ordreTagetService.SendTagetBeskedAsync(valgtId, _currentBud.Id);
-
-                Console.WriteLine("Besked sendt! Vent på opdatering...");
-            }
-            else
-            {
-                Console.WriteLine("ID findes ikke i listen.");
-            }
-        }
-
+        Console.Write($"Indtast ID på bestilling du vil tage: ");
+        Console.Write(inputSoFar);
     }
 }

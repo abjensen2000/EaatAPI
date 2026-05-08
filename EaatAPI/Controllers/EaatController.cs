@@ -48,7 +48,7 @@ namespace EaatAPI.Controllers
         [HttpGet("bestillinger")]
         public IEnumerable<Bestilling> GetBestillinger()
         {
-            return _context.Bestillinger.Where(b => b.BudId == null || b.BudId == 0).ToList();
+            return _context.Bestillinger.Where(b => b.AccepteretAfRestaurant && (b.BudId == null || b.BudId == 0)).ToList();
         }
         [HttpPost("bestillinger")]
         public async Task PostBestilling(Bestilling bestilling)
@@ -58,7 +58,35 @@ namespace EaatAPI.Controllers
             var message = JsonSerializer.Serialize(bestilling);
             var body = System.Text.Encoding.UTF8.GetBytes(message);
             var channel = await _connection.CreateChannelAsync();
-            await channel.BasicPublishAsync(exchange: "bestillingerTilBud", routingKey: string.Empty, body: body);
+            string routingKey = bestilling.RestaurantId.ToString();
+            await channel.BasicPublishAsync(exchange: "bestillingerFraAPITilRestaurant", routingKey: routingKey, body: body);
+        }
+
+        [HttpGet("bestillinger/restaurant/{restaurantId}")]
+        public IEnumerable<Bestilling> GetBestillingerTilRestaurant(int restaurantId)
+        {
+            return _context.Bestillinger
+                .Where(b => b.RestaurantId == restaurantId && !b.AccepteretAfRestaurant)
+                .ToList();
+        }
+
+        [HttpPut("bestillinger/{id}/accepter")]
+        public async Task<IActionResult> AccepterBestilling(int id)
+        {
+            var bestilling = _context.Bestillinger.Find(id);
+            if (bestilling == null) return NotFound();
+
+            bestilling.AccepteretAfRestaurant = true;
+            _context.SaveChanges();
+
+            var message = JsonSerializer.Serialize(bestilling);
+            var body = System.Text.Encoding.UTF8.GetBytes(message);
+
+            var channel = await _connection.CreateChannelAsync();
+
+            await channel.BasicPublishAsync(exchange: "bestillingerFraRestaurantTilBud", routingKey: string.Empty, body: body);
+
+            return Ok();
         }
 
         [HttpGet("buds")]

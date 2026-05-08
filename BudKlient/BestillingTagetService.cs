@@ -4,18 +4,17 @@ using System.Text.Json;
 
 namespace BudKlient
 {
-    public class OrdreTagetService : IAsyncDisposable
+    public class BestillingTagetService : IAsyncDisposable
     {
         private IConnection? _connection;
         private IChannel? _channel;
         private readonly ConnectionFactory _factory;
 
-        public OrdreTagetService()
+        public BestillingTagetService()
         {
             _factory = new ConnectionFactory() { HostName = "localhost" };
         }
 
-        // Hjælpemetode til at sikre at vi kun bygger connection/channel én gang.
         private async Task InitializeRabbitMQAsync()
         {
             if (_connection == null || _channel == null)
@@ -23,7 +22,6 @@ namespace BudKlient
                 _connection = await _factory.CreateConnectionAsync();
                 _channel = await _connection.CreateChannelAsync();
 
-                // Det er nok at deklarere din exchange én gang ved opstart
                 await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraBud", type: ExchangeType.Direct, durable: true);
             }
         }
@@ -36,7 +34,6 @@ namespace BudKlient
             var message = JsonSerializer.Serialize(opdatering);
             var body = Encoding.UTF8.GetBytes(message);
 
-            // Garanterer at _channel ikke er null
             if (_channel != null)
             {
                 await _channel.BasicPublishAsync(exchange: "bestillingerFraBud", routingKey: String.Empty, body: body);

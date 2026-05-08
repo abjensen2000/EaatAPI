@@ -12,14 +12,14 @@ using System.Threading.Channels;
 
 namespace BudKlient
 {
-    internal class ModtagOrdreService : IHostedService
+    internal class ModtagBestillingService : IHostedService
     {
         private IConnection? _connection;
         private IChannel? _channel;
-        private static readonly ConcurrentBag<Bestilling> _bestillinger = new();
+        private static readonly ConcurrentDictionary<int, Bestilling> _bestillinger = new();
         public static Action? OnMessageReceived;
 
-        public static ConcurrentBag<Bestilling> Bestillinger => _bestillinger;
+        public static ConcurrentDictionary<int, Bestilling> Bestillinger => _bestillinger;
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -34,12 +34,12 @@ namespace BudKlient
                     _connection = await factory.CreateConnectionAsync();
                     _channel = await _connection.CreateChannelAsync();
 
-                    await _channel.ExchangeDeclareAsync(exchange: "bestillingerTilBud", type: ExchangeType.Fanout, durable: true);
+                    await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraRestaurantTilBud", type: ExchangeType.Fanout, durable: true);
 
                     QueueDeclareOk queueDeclareResult = await _channel.QueueDeclareAsync();
                     queueName = queueDeclareResult.QueueName;
 
-                    await _channel.QueueBindAsync(queue: queueName, exchange: "bestillingerTilBud", routingKey: string.Empty);
+                    await _channel.QueueBindAsync(queue: queueName, exchange: "bestillingerFraRestaurantTilBud", routingKey: string.Empty);
 
                     forbundet = true;
                     Console.WriteLine("Forbundet til RabbitMQ!");
@@ -65,23 +65,14 @@ namespace BudKlient
                 {
                     if (bestilling.BudId == 0 || bestilling.BudId == null)
                     {
-                        if (!_bestillinger.Any(b => b.Id == bestilling.Id))
+                        if (!_bestillinger.ContainsKey(bestilling.Id))
                         {
-                            _bestillinger.Add(bestilling);
+                            _bestillinger.TryAdd(bestilling.Id, bestilling);
                         }
                     }
                     else
                     {
-                        var eksisterende = _bestillinger.FirstOrDefault(i => i.Id == bestilling.Id);
-                        if (eksisterende != null)
-                        {
-                            var midlertidigListe = _bestillinger.Where(b => b.Id != bestilling.Id).ToList();
-                            _bestillinger.Clear();
-                            foreach (var b in midlertidigListe)
-                            {
-                                _bestillinger.Add(b);
-                            }
-                        }
+                        _bestillinger.TryRemove(bestilling.Id, out _);
                     }
                     OnMessageReceived?.Invoke();
                 }
@@ -99,8 +90,6 @@ namespace BudKlient
 
             Console.WriteLine("Bud-service stoppet.");
         }
-
-
     }
 }
 

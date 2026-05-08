@@ -3,15 +3,15 @@
     public class Kunde
     {
         public Kunde() { }
-        public Kunde(string name, string adresse)
+        public Kunde(string navn, string adresse)
         {
-            Name = name;
+            Navn = navn;
             Adresse = adresse;
         }
 
 
         public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string Navn { get; set; } = string.Empty;
         public string Adresse { get; set; } = string.Empty;
         public int? BestillingId { get; set; }
 
