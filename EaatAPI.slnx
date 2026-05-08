@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Database/">
+    <Project Path="EaatAPI/EaatAPI.csproj" />
+  </Folder>
+  <Folder Name="/Klienter/">
+    <Project Path="BudKlient/BudKlient.csproj" Id="91808afb-deb4-41d5-89b2-52e4f7a90dee" />
+    <Project Path="KundeKlient/KundeKlient.csproj" />
+  </Folder>
+  <Project Path="GlobalModels/GlobalModels.csproj" />
+</Solution>
