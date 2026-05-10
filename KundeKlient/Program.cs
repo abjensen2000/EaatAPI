@@ -16,7 +16,7 @@ public class Program
         while (alleKunder == null)
         {
             try
-            {
+            { //ALTERNATIVT så håndter på en api service, men ligegyldigt, fordi gui er ligegyldig
                 alleKunder = await _httpClient.GetFromJsonAsync<List<Kunde>>("http://localhost:5063/api/eaat/kunder");
             }
             catch
@@ -62,7 +62,7 @@ public class Program
         _modtagNotifikationService = new ModtagNotifikationService(_forbindTilRabbitService);
         await _modtagNotifikationService.StartAsync(new CancellationToken());
 
-        // Når servicen fanger en besked der er for vores KundeId, skal konsollen vise det
+        //Når service får besked af Service, så viser den opdateringen
         ModtagNotifikationService.OnNotificationReceived = (bestilling) =>
         {
             Console.WriteLine($"\nOpdatering på din bestilling '{bestilling.Beskrivelse}':");

@@ -91,7 +91,6 @@ public class Program {
                         {
                             try
                             {
-                                // Dette netværkskald kan fejle, hvis API'et er slukket
                                 var response = await _httpClient.PutAsync($"http://localhost:5063/api/eaat/bestillinger/{valgtId}/accepterRestaurant", null);
 
                                 if (response.IsSuccessStatusCode)
@@ -106,7 +105,6 @@ public class Program {
                             }
                             catch (HttpRequestException)
                             {
-                                // Fanger crash the sker hvis API'en slet ikke kan findes
                                 Console.WriteLine("\n[FEJL] Forbindelse til API'et blev afvist. Serveren er muligvis nede. Prøv igen senere.");
                             }
                             catch (Exception ex)
