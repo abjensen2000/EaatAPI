@@ -1,20 +1,26 @@
 ﻿using BudKlient;
-using EaatAPI.Models;
+using Global.Models;
+using Global.Services;
 using System.Net.Http.Json;
 using System.Text;
+using System.Text.Json;
 
 public class Program
 {
     private static HttpClient _httpClient = new HttpClient();
     private static Bud _currentBud;
-    private static ModtagBestillingService _modtagOrdreService = new ModtagBestillingService();
-    private static BestillingTagetService _ordreTagetService = new BestillingTagetService();
+    private static ModtagBestillingService _modtagBestillingService;
+    //private static BestillingTagetService _bestillingTagetService;
     private static List<Bud> _alleBuds;
     private static bool _redrawRequested = false;
 
     public static async Task Main(string[] args)
     {
-        await _modtagOrdreService.StartAsync(new CancellationToken());
+        var forbindTilRabbitService = new ForbindTilRabbitService();
+        _modtagBestillingService = new ModtagBestillingService(forbindTilRabbitService);
+    //    _bestillingTagetService = new BestillingTagetService();
+
+        await _modtagBestillingService.StartAsync(new CancellationToken());
         while (_alleBuds == null) {
             try
             {
@@ -78,7 +84,8 @@ public class Program
 
                         if (fundetBestilling != null)
                         {
-                            await _ordreTagetService.SendTagetBeskedAsync(valgtId, _currentBud.Id);
+                            //await _bestillingTagetService.SendTagetBeskedAsync(valgtId, _currentBud.Id);
+                            var response = await _httpClient.PutAsync($"http://localhost:5063/api/eaat/bestillinger/{valgtId}/accepterBud/{_currentBud.Id}", null); 
                             ModtagBestillingService.Bestillinger.TryRemove(valgtId, out _);
                             Console.WriteLine("\nBesked sendt! Vent på opdatering...");
                             await Task.Delay(1000);

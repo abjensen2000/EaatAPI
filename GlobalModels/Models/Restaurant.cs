@@ -1,4 +1,4 @@
-﻿namespace EaatAPI.Models
+﻿namespace Global.Models
 {
     public class Restaurant
     {

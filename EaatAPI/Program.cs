@@ -1,7 +1,13 @@
 using EaatAPI.Database;
-using EaatAPI.Models;
 using EaatAPI.Services;
+using Global.Models;
+using Global.Services;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Polly;
+using Polly.Retry;
 using RabbitMQ.Client;
+using Scalar.AspNetCore;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,12 +18,10 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<EaatContext>();
 builder.Services.AddHostedService<BestillingsFraBudService>();
-var factory = new ConnectionFactory() { HostName = "localhost" };
-var connection = await factory.CreateConnectionAsync();
-var channel = await connection.CreateChannelAsync();
-await channel.ExchangeDeclareAsync(exchange: "bestillingerFraAPITilRestaurant", type: ExchangeType.Direct, durable: true);
-await channel.ExchangeDeclareAsync(exchange: "bestillingerFraBud", type: ExchangeType.Direct, durable: true);
-builder.Services.AddSingleton<IConnection>(connection);
+builder.Services.AddSingleton<ForbindTilRabbitService>();
+
+
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
@@ -55,6 +59,7 @@ using (var scope = app.Services.CreateScope())
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();

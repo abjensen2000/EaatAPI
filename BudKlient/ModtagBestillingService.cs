@@ -1,4 +1,5 @@
-﻿using EaatAPI.Models;
+﻿using Global.Models;
+using Global.Services;
 using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -14,12 +15,16 @@ namespace BudKlient
 {
     internal class ModtagBestillingService : IHostedService
     {
-        private IConnection? _connection;
+        private ForbindTilRabbitService _forbindTilRabbitService;
         private IChannel? _channel;
         private static readonly ConcurrentDictionary<int, Bestilling> _bestillinger = new();
         public static Action? OnMessageReceived;
-
         public static ConcurrentDictionary<int, Bestilling> Bestillinger => _bestillinger;
+
+        public ModtagBestillingService(ForbindTilRabbitService forbindTilRabbitService)
+        {
+            _forbindTilRabbitService = forbindTilRabbitService;
+        }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -30,9 +35,8 @@ namespace BudKlient
             {
                 try
                 {
-                    var factory = new ConnectionFactory() { HostName = "localhost" };
-                    _connection = await factory.CreateConnectionAsync();
-                    _channel = await _connection.CreateChannelAsync();
+                    var connection = await _forbindTilRabbitService.GetConnectionAsync();
+                    _channel = await connection.CreateChannelAsync();
 
                     await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraRestaurantTilBud", type: ExchangeType.Fanout, durable: true);
 
@@ -83,12 +87,10 @@ namespace BudKlient
             Console.WriteLine("Bud-service er startet og lytter...");
         }
 
-        public async Task StopAsync(CancellationToken cancellationToken)
+        public Task StopAsync(CancellationToken cancellationToken)
         {
-            if (_channel is not null) await _channel.CloseAsync();
-            if (_connection is not null) await _connection.CloseAsync();
-
             Console.WriteLine("Bud-service stoppet.");
+            return Task.CompletedTask;
         }
     }
 }

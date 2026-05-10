@@ -22,7 +22,7 @@ namespace BudKlient
                 _connection = await _factory.CreateConnectionAsync();
                 _channel = await _connection.CreateChannelAsync();
 
-                await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraBud", type: ExchangeType.Direct, durable: true);
+                await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraBudTilAPI", type: ExchangeType.Direct, durable: true);
             }
         }
 
@@ -36,7 +36,7 @@ namespace BudKlient
 
             if (_channel != null)
             {
-                await _channel.BasicPublishAsync(exchange: "bestillingerFraBud", routingKey: String.Empty, body: body);
+                await _channel.BasicPublishAsync(exchange: "bestillingerFraBudTilAPI", routingKey: String.Empty, body: body);
             }
         }
 

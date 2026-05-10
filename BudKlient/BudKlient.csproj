@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GlobalModels\GlobalModels.csproj" />
+    <ProjectReference Include="..\GlobalModels\Global.csproj" />
   </ItemGroup>
 
 </Project>

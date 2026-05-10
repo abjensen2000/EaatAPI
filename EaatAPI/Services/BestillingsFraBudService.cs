@@ -1,28 +1,30 @@
 ﻿using EaatAPI.Database;
-using EaatAPI.Models;
+using Global.Models;
+using Global.Services;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System.Text;
 using System.Text.Json;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace EaatAPI.Services
 {
     public class BestillingsFraBudService : IHostedService
     {
-        private IConnection? _connection;
+        private ForbindTilRabbitService _forbindTilRabbitService;
         private readonly IServiceProvider _serviceProvider;
         private IChannel _channel;
 
 
-        public BestillingsFraBudService(IConnection connection, IServiceProvider serviceProvider)
+        public BestillingsFraBudService(ForbindTilRabbitService forbindTilRabbitService, IServiceProvider serviceProvider)
         {
-            _connection = connection;
+            _forbindTilRabbitService = forbindTilRabbitService;
             _serviceProvider = serviceProvider;
         }
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var factory = new ConnectionFactory() { HostName = "localhost" };
-            _channel = await _connection.CreateChannelAsync();
+            var connection = await _forbindTilRabbitService.GetConnectionAsync();
+            _channel = await connection.CreateChannelAsync();
 
             await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraBud", type: ExchangeType.Direct, durable: true);
             QueueDeclareOk queueDeclareResult = await _channel.QueueDeclareAsync();
@@ -62,11 +64,10 @@ namespace EaatAPI.Services
             Console.WriteLine("BestillingFraBudservice er startet og lytter...");
         }
 
-        public async Task StopAsync(CancellationToken cancellationToken)
+        public Task StopAsync(CancellationToken cancellationToken)
         {
-            if (_connection is not null) await _connection.CloseAsync();
-
             Console.WriteLine("Bud-service stoppet.");
+            return Task.CompletedTask;
         }
     }
 }

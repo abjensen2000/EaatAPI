@@ -1,4 +1,5 @@
-﻿using EaatAPI.Models;
+﻿using Global.Models;
+using Global.Services;
 using RestaurantGUI;
 using System.Net.Http.Json;
 
@@ -6,7 +7,7 @@ public class Program {
 
     private static HttpClient _httpClient = new HttpClient();
     private static Restaurant _currentRestaurant;
-    private static ModtagKundebestillingService _modtagKundebestillingService = new ModtagKundebestillingService();
+    private static ModtagKundebestillingService _modtagKundebestillingService;
     //private static BestillingAccepteretService _bestillingAccepteretService = new BestillingAccepteretService();
     private static List<Restaurant> _alleRestauranter;
     private static bool _redrawRequested = false;
@@ -23,7 +24,6 @@ public class Program {
                 await Task.Delay(2000);
             }
         }
-
         while (_currentRestaurant == null)
         {
             Console.WriteLine("Indtast restaurantnavn (eller tryk ctrl+c for at lukke):");
@@ -36,6 +36,8 @@ public class Program {
                 Console.WriteLine($"Kunne ikke finde en restaurant med navnet '{input}'. Prøv igen.\n");
             }
         }
+        ForbindTilRabbitService forbindTilRabbitService = new ForbindTilRabbitService();
+        _modtagKundebestillingService = new ModtagKundebestillingService(forbindTilRabbitService);
 
         ModtagKundebestillingService.RestaurantId = _currentRestaurant.Id;
         await _modtagKundebestillingService.StartAsync(new CancellationToken());
@@ -87,19 +89,36 @@ public class Program {
 
                         if (fundetBestilling != null)
                         {
-                            // Kald API'et via HTTP PUT!
-                            var response = await _httpClient.PutAsync($"http://localhost:5063/api/eaat/bestillinger/{valgtId}/accepter", null);
-
-                            if (response.IsSuccessStatusCode)
+                            try
                             {
-                                ModtagKundebestillingService.Bestillinger.TryRemove(valgtId, out _);
-                                Console.WriteLine("\nBestilling accepteret! Den er nu sendt til budene.");
+                                // Dette netværkskald kan fejle, hvis API'et er slukket
+                                var response = await _httpClient.PutAsync($"http://localhost:5063/api/eaat/bestillinger/{valgtId}/accepterRestaurant", null);
+
+                                if (response.IsSuccessStatusCode)
+                                {
+                                    ModtagKundebestillingService.Bestillinger.TryRemove(valgtId, out _);
+                                    Console.WriteLine("\nBestilling accepteret! Den er nu sendt til budene.");
+                                }
+                                else
+                                {
+                                    Console.WriteLine("\nKunne ikke acceptere bestilling. API'et returnerede en fejl.");
+                                }
                             }
-                            else
+                            catch (HttpRequestException)
                             {
-                                Console.WriteLine("\nKunne ikke acceptere bestilling i API'et.");
+                                // Fanger crash the sker hvis API'en slet ikke kan findes
+                                Console.WriteLine("\n[FEJL] Forbindelse til API'et blev afvist. Serveren er muligvis nede. Prøv igen senere.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"\n[SYSTEM FEJL] Noget gik galt: {ex.Message}");
                             }
 
+                            await Task.Delay(2000); // Giver bruger lidt ekstra tid til at læse beskeden
+                        }
+                        else
+                        {
+                            Console.WriteLine("\nID findes ikke på listen.");
                             await Task.Delay(1000);
                         }
                     }

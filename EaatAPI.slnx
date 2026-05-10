@@ -7,5 +7,5 @@
     <Project Path="KundeKlient/KundeKlient.csproj" />
     <Project Path="RestaurantGUI/RestaurantGUI.csproj" Id="85fd779d-b32b-421e-b8ba-02a46a188b5a" />
   </Folder>
-  <Project Path="GlobalModels/GlobalModels.csproj" />
+  <Project Path="GlobalModels/Global.csproj" />
 </Solution>

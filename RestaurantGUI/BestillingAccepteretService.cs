@@ -24,7 +24,6 @@ namespace RestaurantGUI
             {
                 _connection = await _factory.CreateConnectionAsync();
                 _channel = await _connection.CreateChannelAsync();
-
                 await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraRestaurantTilBud", type: ExchangeType.Direct, durable: true);
             }
         }

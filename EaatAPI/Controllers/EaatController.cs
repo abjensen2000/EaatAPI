@@ -1,8 +1,10 @@
 using EaatAPI.Database;
-using EaatAPI.Models;
+using Global.Models;
+using Global.Services;
 using Microsoft.AspNetCore.Mvc;
 using RabbitMQ.Client;
 using System.Text.Json;
+using System.Threading.Channels;
 
 namespace EaatAPI.Controllers
 {
@@ -11,13 +13,12 @@ namespace EaatAPI.Controllers
     public class EaatController : ControllerBase
     {
         private EaatContext _context;
-        private readonly IConnection _connection;
+        private ForbindTilRabbitService _forbindTilRabbitService;
 
-
-        public EaatController(EaatContext context, IConnection connection)
+        public EaatController(EaatContext context, ForbindTilRabbitService forbindTilRabbitService)
         {
             _context = context;
-            _connection = connection;
+            _forbindTilRabbitService = forbindTilRabbitService;
         }
 
         [HttpGet("kunder")]
@@ -57,7 +58,8 @@ namespace EaatAPI.Controllers
             _context.SaveChanges();
             var message = JsonSerializer.Serialize(bestilling);
             var body = System.Text.Encoding.UTF8.GetBytes(message);
-            var channel = await _connection.CreateChannelAsync();
+            var connection = await _forbindTilRabbitService.GetConnectionAsync();
+            var channel = await connection.CreateChannelAsync();
             string routingKey = bestilling.RestaurantId.ToString();
             await channel.BasicPublishAsync(exchange: "bestillingerFraAPITilRestaurant", routingKey: routingKey, body: body);
         }
@@ -70,11 +72,14 @@ namespace EaatAPI.Controllers
                 .ToList();
         }
 
-        [HttpPut("bestillinger/{id}/accepter")]
-        public async Task<IActionResult> AccepterBestilling(int id)
+        [HttpPut("bestillinger/{id}/accepterRestaurant")]
+        public async Task<IActionResult> AccepterBestillingRestaurant(int id)
         {
             var bestilling = _context.Bestillinger.Find(id);
             if (bestilling == null) return NotFound();
+
+            var connection = await _forbindTilRabbitService.GetConnectionAsync();
+            var channel = await connection.CreateChannelAsync();
 
             bestilling.AccepteretAfRestaurant = true;
             _context.SaveChanges();
@@ -82,9 +87,35 @@ namespace EaatAPI.Controllers
             var message = JsonSerializer.Serialize(bestilling);
             var body = System.Text.Encoding.UTF8.GetBytes(message);
 
-            var channel = await _connection.CreateChannelAsync();
 
             await channel.BasicPublishAsync(exchange: "bestillingerFraRestaurantTilBud", routingKey: string.Empty, body: body);
+            await channel.BasicPublishAsync(exchange: "notifikationTilKunde", routingKey: bestilling.KundeId.ToString(), body: body);
+
+            return Ok();
+        }
+
+        [HttpPut("bestillinger/{bestillingId}/accepterBud/{budId}")]
+        public async Task<IActionResult> TilknytBud(int bestillingId, int budId)
+        {
+            var bestilling = _context.Bestillinger.Find(bestillingId);
+
+            if (bestilling == null)
+            {
+                return NotFound("Bestilling ikke fundet");
+            }
+
+            if (bestilling.BudId != 0 && bestilling.BudId != null)
+            {
+                return Conflict("Denne bestilling er allerede taget af et andet bud");
+            }
+            bestilling.BudId = budId;
+            _context.SaveChanges();
+
+            var message = JsonSerializer.Serialize(bestilling);
+            var body = System.Text.Encoding.UTF8.GetBytes(message);
+            var connection = await _forbindTilRabbitService.GetConnectionAsync();
+            var channel = await connection.CreateChannelAsync();
+            await channel.BasicPublishAsync(exchange: "notifikationTilKunde", routingKey: bestilling.KundeId.ToString(), body: body);
 
             return Ok();
         }

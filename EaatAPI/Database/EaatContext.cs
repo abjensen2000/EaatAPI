@@ -1,4 +1,4 @@
-﻿using EaatAPI.Models;
+﻿using Global.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace EaatAPI.Database

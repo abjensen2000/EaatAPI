@@ -4,25 +4,19 @@ using Microsoft.Extensions.Hosting;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Channels;
 
-namespace RestaurantGUI
+namespace KundeKlient
 {
-    internal class ModtagKundebestillingService : IHostedService
+    internal class ModtagNotifikationService : IHostedService
     {
-        private IChannel? _channel;
         private ForbindTilRabbitService _forbindTilRabbitService;
-        private static readonly ConcurrentDictionary<int, Bestilling> _bestillinger = new();
-        public static Action? OnMessageReceived;
-        public static int RestaurantId { get; set; }
-        public static ConcurrentDictionary<int, Bestilling> Bestillinger => _bestillinger;
-
-
-        public ModtagKundebestillingService(ForbindTilRabbitService forbindTilRabbitService)
+        private IChannel _channel;
+        public static Action<Bestilling>? OnNotificationReceived;
+        public static int KundeId { get; set; }
+        public ModtagNotifikationService(ForbindTilRabbitService forbindTilRabbitService)
         {
             _forbindTilRabbitService = forbindTilRabbitService;
         }
@@ -39,12 +33,12 @@ namespace RestaurantGUI
                     var connection = await _forbindTilRabbitService.GetConnectionAsync();
                     _channel = await connection.CreateChannelAsync();
 
-                    await _channel.ExchangeDeclareAsync(exchange: "bestillingerFraAPITilRestaurant", type: ExchangeType.Direct, durable: true);
+                    await _channel.ExchangeDeclareAsync(exchange: "notifikationTilKunde", type: ExchangeType.Direct, durable: true);
 
-                    QueueDeclareOk queueDeclareResult = await _channel.QueueDeclareAsync();
-                    queueName = queueDeclareResult.QueueName;
+                    queueName = $"kundeQueue_{KundeId}";
+                    QueueDeclareOk queueDeclareResult = await _channel.QueueDeclareAsync(queue: queueName, durable: true, exclusive: false, autoDelete: false);
 
-                    await _channel.QueueBindAsync(queue: queueName, exchange: "bestillingerFraAPITilRestaurant", routingKey: RestaurantId.ToString());
+                    await _channel.QueueBindAsync(queue: queueName, exchange: "notifikationTilKunde", routingKey: KundeId.ToString());
 
                     forbundet = true;
                     Console.WriteLine("Forbundet til RabbitMQ!");
@@ -58,7 +52,7 @@ namespace RestaurantGUI
 
             if (_channel == null) return;
 
-            Console.WriteLine("Venter på ordrer...");
+            Console.WriteLine("Venter på at ordrer bliver accepteret...");
 
             var consumer = new AsyncEventingBasicConsumer(_channel);
             consumer.ReceivedAsync += (model, ea) =>
@@ -68,18 +62,7 @@ namespace RestaurantGUI
 
                 if (bestilling != null)
                 {
-                    if (bestilling.BudId == 0 || bestilling.BudId == null)
-                    {
-                        if (!_bestillinger.ContainsKey(bestilling.Id))
-                        {
-                            _bestillinger.TryAdd(bestilling.Id, bestilling);
-                        }
-                    }
-                    else
-                    {
-                        _bestillinger.TryRemove(bestilling.Id, out _);
-                    }
-                    OnMessageReceived?.Invoke();
+                    OnNotificationReceived.Invoke(bestilling);
                 }
                 return Task.CompletedTask;
             };
@@ -90,8 +73,7 @@ namespace RestaurantGUI
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            Console.WriteLine("Bud-service stoppet.");
-            return Task.CompletedTask;
+            throw new NotImplementedException();
         }
     }
 }
