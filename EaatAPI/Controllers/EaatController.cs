@@ -67,9 +67,7 @@ namespace EaatAPI.Controllers
         [HttpGet("bestillinger/restaurant/{restaurantId}")]
         public IEnumerable<Bestilling> GetBestillingerTilRestaurant(int restaurantId)
         {
-            return _context.Bestillinger
-                .Where(b => b.RestaurantId == restaurantId && !b.AccepteretAfRestaurant)
-                .ToList();
+            return _context.Bestillinger.Where(b => b.RestaurantId == restaurantId && !b.AccepteretAfRestaurant).ToList();
         }
 
         [HttpPut("bestillinger/{id}/accepterRestaurant")]
@@ -104,7 +102,11 @@ namespace EaatAPI.Controllers
                 return NotFound("Bestilling ikke fundet");
             }
 
-            if (bestilling.BudId != 0 && bestilling.BudId != null)
+            if (bestilling.BudId == budId) { //Er det her idempotent??
+                return Ok();
+            }
+
+            if (bestilling.BudId != 0 && bestilling.BudId != null) //Race-condition??
             {
                 return Conflict("Denne bestilling er allerede taget af et andet bud");
             }
