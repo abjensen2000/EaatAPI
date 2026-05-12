@@ -23,6 +23,8 @@ namespace EaatAPI.Database
         public DbSet<Restaurant> Restauranter { get; set; }
         public DbSet<Bestilling> Bestillinger { get; set; }
 
+        public DbSet<OutboxMessage> OutboxMessages { get; set; }
+
     }
 }
 

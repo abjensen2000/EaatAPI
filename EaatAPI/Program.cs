@@ -18,6 +18,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<EaatContext>();
 builder.Services.AddHostedService<BestillingsFraBudService>();
+builder.Services.AddHostedService<OutboxService>();
 builder.Services.AddSingleton<ForbindTilRabbitService>();
 
 

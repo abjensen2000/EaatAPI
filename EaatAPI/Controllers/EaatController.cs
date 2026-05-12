@@ -56,12 +56,10 @@ namespace EaatAPI.Controllers
         {
             _context.Bestillinger.Add(bestilling);
             _context.SaveChanges();
-            var message = JsonSerializer.Serialize(bestilling);
-            var body = System.Text.Encoding.UTF8.GetBytes(message);
-            var connection = await _forbindTilRabbitService.GetConnectionAsync();
-            var channel = await connection.CreateChannelAsync();
-            string routingKey = bestilling.RestaurantId.ToString();
-            await channel.BasicPublishAsync(exchange: "bestillingerFraAPITilRestaurant", routingKey: routingKey, body: body);
+            var beskedTilKunde = new OutboxMessage("bestillingerFraAPITilRestaurant", bestilling.RestaurantId.ToString(), JsonSerializer.Serialize(bestilling));
+            _context.OutboxMessages.AddRange(beskedTilKunde);
+            _context.SaveChanges();
+
         }
 
         [HttpGet("bestillinger/restaurant/{restaurantId}")]
@@ -75,19 +73,13 @@ namespace EaatAPI.Controllers
         {
             var bestilling = _context.Bestillinger.Find(id);
             if (bestilling == null) return NotFound();
-
-            var connection = await _forbindTilRabbitService.GetConnectionAsync();
-            var channel = await connection.CreateChannelAsync();
-
             bestilling.AccepteretAfRestaurant = true;
+            //var body = System.Text.Encoding.UTF8.GetBytes(message);
+
+            var beskedTilBud = new OutboxMessage("bestillingerFraRestaurantTilBud", string.Empty, JsonSerializer.Serialize(bestilling));
+            var beskedTilKunde = new OutboxMessage("notifikationTilKunde", bestilling.KundeId.ToString(), JsonSerializer.Serialize(bestilling));
+            _context.OutboxMessages.AddRange(beskedTilBud, beskedTilKunde);
             _context.SaveChanges();
-
-            var message = JsonSerializer.Serialize(bestilling);
-            var body = System.Text.Encoding.UTF8.GetBytes(message);
-
-
-            await channel.BasicPublishAsync(exchange: "bestillingerFraRestaurantTilBud", routingKey: string.Empty, body: body);
-            await channel.BasicPublishAsync(exchange: "notifikationTilKunde", routingKey: bestilling.KundeId.ToString(), body: body);
 
             return Ok();
         }
@@ -102,7 +94,8 @@ namespace EaatAPI.Controllers
                 return NotFound("Bestilling ikke fundet");
             }
 
-            if (bestilling.BudId == budId) { //Er det her idempotent??
+            if (bestilling.BudId == budId)
+            { //Er det her idempotent??
                 return Ok();
             }
 
@@ -111,13 +104,10 @@ namespace EaatAPI.Controllers
                 return Conflict("Denne bestilling er allerede taget af et andet bud");
             }
             bestilling.BudId = budId;
+            var beskedTilKunde = new OutboxMessage("notifikationTilKunde", bestilling.KundeId.ToString(), JsonSerializer.Serialize(bestilling));
+            _context.OutboxMessages.AddRange(beskedTilKunde);
             _context.SaveChanges();
 
-            var message = JsonSerializer.Serialize(bestilling);
-            var body = System.Text.Encoding.UTF8.GetBytes(message);
-            var connection = await _forbindTilRabbitService.GetConnectionAsync();
-            var channel = await connection.CreateChannelAsync();
-            await channel.BasicPublishAsync(exchange: "notifikationTilKunde", routingKey: bestilling.KundeId.ToString(), body: body);
 
             return Ok();
         }
