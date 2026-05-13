@@ -27,6 +27,10 @@ namespace EaatAPI.Services
             var connection = await _forbindTilRabbit.GetConnectionAsync();
             var channel = await connection.CreateChannelAsync();
 
+            await channel.ExchangeDeclareAsync(exchange: "bestillingerFraAPITilRestaurant", type: ExchangeType.Direct, durable: true);
+            await channel.ExchangeDeclareAsync(exchange: "bestillingerFraRestaurantTilBud", type: ExchangeType.Fanout, durable: true);
+            await channel.ExchangeDeclareAsync(exchange: "notifikationTilKunde", type: ExchangeType.Direct, durable: true); // eller Fanout, the det du The valgt i Klienten
+
             Console.WriteLine("Outbox-service er startet og overvåger for usendte beskeder...");
 
             while (!stoppingToken.IsCancellationRequested)
