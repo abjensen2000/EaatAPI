@@ -95,11 +95,11 @@ namespace EaatAPI.Controllers
             }
 
             if (bestilling.BudId == budId)
-            { //Er det her idempotent??
+            {
                 return Ok();
             }
 
-            if (bestilling.BudId != 0 && bestilling.BudId != null) //Race-condition??
+            if (bestilling.BudId != 0 && bestilling.BudId != null)
             {
                 return Conflict("Denne bestilling er allerede taget af et andet bud");
             }

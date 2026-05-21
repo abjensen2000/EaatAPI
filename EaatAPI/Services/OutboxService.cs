@@ -29,7 +29,7 @@ namespace EaatAPI.Services
 
             await channel.ExchangeDeclareAsync(exchange: "bestillingerFraAPITilRestaurant", type: ExchangeType.Direct, durable: true);
             await channel.ExchangeDeclareAsync(exchange: "bestillingerFraRestaurantTilBud", type: ExchangeType.Fanout, durable: true);
-            await channel.ExchangeDeclareAsync(exchange: "notifikationTilKunde", type: ExchangeType.Direct, durable: true); // eller Fanout, the det du The valgt i Klienten
+            await channel.ExchangeDeclareAsync(exchange: "notifikationTilKunde", type: ExchangeType.Direct, durable: true);
 
             Console.WriteLine("Outbox-service er startet og overvåger for usendte beskeder...");
 
@@ -50,7 +50,7 @@ namespace EaatAPI.Services
                                 await channel.BasicPublishAsync(exchange: besked.ExchangeName, routingKey: besked.RoutingKey, body: body, cancellationToken: stoppingToken);
                                 besked.ErSendt = true;
                             }
-                            await context.SaveChangesAsync(stoppingToken);
+                            await context.SaveChangesAsync(stoppingToken); //Annullerer transaktionen hvis processen stopper
                         }
                     }
                 }
